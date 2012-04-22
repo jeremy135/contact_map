@@ -1,0 +1,13 @@
+; $Id$
+name = Contact Map
+description = Provide Map block for contact page
+package = J Custom Modules
+core = 7.x
+configure = admin/config/content/contact_map
+
+dependencies[] = ctools
+
+files[] = contact_map.module
+files[] = contact_map.admin.inc
+
+version = "7.x-1.0"

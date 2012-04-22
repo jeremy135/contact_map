@@ -1,0 +1,273 @@
+<?php
+
+function contact_map_menu(){
+    $items = array();
+    $items['contact'] = array(
+        'title' => t('Contact'),
+        'page callback' => 'contact_page',
+        'access arguments' => array('access content'),
+        'type' => MENU_NORMAL_ITEM
+    );
+    $items['admin/config/content/contact_map'] = array(
+        'title' => t('Contact Map Settings'),
+        'page callback' => 'contact_map_settings',
+        'access arguments' => array('administer contact_map'),
+        'type' => MENU_NORMAL_ITEM,
+        'file' => 'contact_map.admin.inc',
+    );
+    $items['admin/config/content/contact_map/default'] = array(
+        'title' => t('Contact Map Settings'),
+        'page callback' => 'contact_map_settings',
+        'access arguments' => array('administer contact_map'),
+        'type' => MENU_DEFAULT_LOCAL_TASK,
+        'file' => 'contact_map.admin.inc',
+    );
+    $items['admin/config/content/contact_map/points'] = array(
+		'title' => 'Метки',
+		'page callback' => 'contact_map_settings_points',
+		'access arguments' => array('administer contact_map'),
+		'file' => 'contact_map.admin.inc',
+		'type' => MENU_LOCAL_TASK,
+	);
+    
+    $items['admin/contact_map/points/edit/%'] = array(
+		'title' => 'Изменить метку',
+		'page callback' => 'contact_map_settings_points_edit',
+		'access arguments' => array('administer contact_map'),
+        'page arguments' => array(4),
+		'file' => 'contact_map.admin.inc',
+		'type' => MENU_LOCAL_TASK,
+	);
+    
+    $items['admin/contact_map/points/delete/%'] = array(
+		'title' => 'Удалить метку',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array("contact_map_settings_points_delete", 4),
+		'access arguments' => array('administer contact_map'),
+		'file' => 'contact_map.admin.inc',
+		'type' => MENU_LOCAL_TASK,
+	);
+
+    
+    $items['admin/config/content/contact_map/points/add'] = array(
+		'title' => 'Добавить метку',
+		'page callback' => 'contact_map_settings_points_add',
+		'access arguments' => array('administer contact_map'),
+		'file' => 'contact_map.admin.inc',
+		'type' => MENU_LOCAL_ACTION,
+	);
+    
+    return $items;
+    
+}
+
+function contact_map_permission() {
+	return array(
+		'administer content_map' => array(
+			'title' => t('Administer content_map'),
+			'description' => t('Allows to access content_mpa settings.'),
+		),
+	);
+}
+
+function contact_map_block_info() {
+	$blocks['contact_map'] = array(
+		'info' => 'Блок с Картой',
+		'cache' => DRUPAL_CACHE_GLOBAL,
+	);
+	return $blocks;
+}
+
+function contact_map_block_view($delta = '') {
+	if ($delta == 'contact_map') {
+		$output = contact_map_get();
+		$block = array(
+			'content' => $output,
+		);
+	}
+	return $block;
+}
+
+function contact_map_get() {
+    $provider = variable_get('contact_map_provider');
+    $path = drupal_get_path('module', 'contact_map');
+    ctools_add_css('contact_map', 'contact_map');
+    $zoom = variable_get('contact_map_zoom', '16');
+        
+    $center_ymaps = variable_get('contact_map_cc_ymaps', '52.2, 104.2');
+    
+    $center_2gis = variable_get('contact_map_cc_2gis', '104.2, 52.2');
+        
+    $min_width = variable_get('contact_map_min_width',  '500');
+    $min_height = variable_get('contact_map_min_height',  '350');
+    $max_width = variable_get('contact_map_max_width',  '700');
+    $max_height = variable_get('contact_map_max_height', '500');
+        
+    $min_height = '350';
+        
+    $content = '<p class="map_content"> Тут что-то находиться</p>';
+    
+    $ballons = db_select('contact_map', 'cm')->fields('cm')->execute();
+    
+    
+    if($provider == 'yandex') {
+        drupal_add_js('http://api-maps.yandex.ru/2.0/?load=package.full&lang=ru-RU', 'file');
+        
+        $bln ='';
+        
+        foreach($ballons as $ballon) {
+            $bln .=  "myPlacemark". $ballon->pid ." = new ymaps.Placemark([" . $ballon->left_ . "," . $ballon->right_ . "], {
+                    // Свойства
+                    //iconContent: 'Щелкни по мне',
+                    balloonContentHeader: '". $ballon->name ."',
+                    balloonContentBody: '<p class=map_content>" . $ballon->content . "</p>',
+                }, {
+                    // Опции
+                    preset: 'twirl#blueStretchyIcon' // иконка растягивается под контент
+                });
+                
+                // Добавляем метку на карту
+                myMap.geoObjects.add(myPlacemark". $ballon->pid .");
+            "; 
+        }
+        
+        
+        
+        $code = "
+        var cm = {};
+        cm.minSize = 'height:" . $min_height . "px;width: ". $min_width ."px'; 
+        cm.maxSize = 'height:" . $max_height . "px;width: ". $max_width ."px';
+         ymaps.ready(function () { 
+            var myMap = new ymaps.Map('myMap', {
+                // центр и коэффициент масштабирования однозначно
+                // определяют область картографирования
+                center: [" . $center_ymaps . "],
+                zoom: " . $zoom . ",
+                
+                behaviors: ['default', 'scrollZoom']
+            });
+            
+            // Добавление стандартного набора кнопок
+            myMap.controls.add('mapTools')
+                // Добавление кнопки изменения масштаба 
+                .add('zoomControl')
+                // Добавление списка типов карты
+                 .add('typeSelector');
+                 
+            // Включаем поведения после создания карты
+            myMap.behaviors.enable('drag');
+            
+            ". $bln ."
+            
+        })
+        ";
+        
+
+    } elseif($provider  == '2gis') {
+        
+        drupal_add_js('http://maps.api.2gis.ru/1.0', 'file');
+        
+         $bln ='';
+        
+        foreach($ballons as $ballon) {
+            $bln .=  " // Создаем балун: 
+                var myBalloon". $ballon->pid ." = new DG.Balloons.Common({ 
+                    // Местоположение на которое указывает балун: 
+                    geoPoint: new DG.GeoPoint(" .$ballon->right_ . ", " . $ballon->left_ ."), 
+                    // Текст внутри балуна: 
+                    contentHtml: '<p class=map_content>" . $ballon->content . "</p>'
+                
+                }); 
+                // Создаем маркер: 
+                var myMarker". $ballon->pid ." = new DG.Markers.Common({ 
+                    // Местоположение на которое указывает маркер (в нашем случае, такое же, где и балун): 
+                    geoPoint: new DG.GeoPoint(" .$ballon->right_ . ", " . $ballon->left_ ."), 
+                    // Функция, которая будет вызвана при клике по маркеру: 
+                    clickCallback: function() { 
+                        // Если балун еще не был добавлен: 
+                        if (! myMap.balloons.getDefaultGroup().contains(myBalloon". $ballon->pid .")) { 
+                            // Добавить балун на карту: 
+                            myMap.balloons.add(myBalloon". $ballon->pid ."); 
+                        } else { 
+                        // Если балун уже был добавлен на карту, но потом был скрыт: 
+                            // Показать балун:  
+                            myBalloon". $ballon->pid .".show();
+                        } 
+                    } 
+                }); 
+                // Добавить маркер: 
+                myMap.markers.add(myMarker". $ballon->pid .");";
+				
+				
+				
+				
+				
+				
+        }
+        
+        
+        $code =  " // Создаем обработчик загрузки страницы:
+        var cm= {};
+        cm.minSize = 'height:" . $min_height . "px;width: ". $min_width ."px'; 
+        cm.maxSize = 'height:" . $max_height . "px;width: ". $max_width ."px';
+    
+        DG.autoload(function() {
+            // Создаем объект карты, связанный с контейнером:
+            var myMap = new DG.Map('myMap');
+            // Устанавливаем центр карты:
+            myMap.setCenter(new DG.GeoPoint(" . $center_2gis . "));
+            // Устанавливаем коэффициент масштабирования:
+            myMap.setZoom(" . $zoom . ");
+            // Добавляем элемент управления коэффициентом масштабирования:
+            myMap.controls.add(new DG.Controls.Zoom());
+            
+           ". $bln ."
+            
+			// Хранилище observer-ов, с помощью которых можно управлять зарегистрированными обработчиками:
+			var observers = []
+				
+			var secondCallback = function(evt){
+				//console.log(evt);
+				var centerGeoPoint = evt.getGeoPoint();
+				console.log(centerGeoPoint);
+				
+				// Отправка асинхронного запроса к справочному API 2ГИС
+				var cid1 = myMap.ajax.get({
+					url: 'http://catalog.api.2gis.ru/geo/search?',
+					data: {
+						output: 'jsonp',
+						key: '123456789',
+						version: 1.3,
+						q: centerGeoPoint.lat + ',' + centerGeoPoint.lon
+					},
+					success: function (response){
+						alert ('Всего проектов:' + response.total + '. Первый проект в списке: ' + response.result[0].name)
+					},
+					failture: function (){
+						alert('При отправке запроса возникла ошибка!');
+					},
+					scope: this
+				});
+			
+				
+				alert('Широта: ' + centerGeoPoint.lat + ', Долгота: ' + centerGeoPoint.lon);
+			}
+			
+			observers[0] = myMap.addEventListener(myMap.getContainerId(), 'DgClick', secondCallback);
+			
+			
+        });" ;
+           
+    }
+    
+    drupal_add_js($code, 'inline');
+    
+    $output = '<div id="myMap" style="width:'. $min_width .'px; height:'. $min_height .'px;" class="default"></div>';
+        
+    if(variable_get('contact_map_button')){
+        $output .= '<div id="zoom"><span id="plus"><a href="#">Увеличить</a></span><span id="minus" class="hide"><a href="#">Уменьшить</a></span></div>';
+        ctools_add_js('contact_map', 'contact_map');
+    }
+    
+    return $output;
+}

@@ -1,0 +1,49 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function contact_map_schema() {
+ $schema['contact_map'] = array(
+    'description' => 'The base table for order.',
+    'fields' => array(
+      'pid' => array(
+        'description' => '',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'name' => array(
+        'description' => '',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'left_' => array(
+        'description' => '',
+        'type' => 'varchar',
+        'length' => 255,
+        'default' => '',
+      ),
+     'right_' => array(
+        'description' => '',
+        'type' => 'varchar',
+        'length' => 255,
+        'default' => '',
+      ),
+     'content' => array(
+        'description' => '',
+        'type' => 'text',
+        'not null' => TRUE,
+      ),
+    ),
+    'unique keys' => array(
+      'pid' => array('pid'),
+    ),
+    'primary key' => array('pid'),
+  );
+
+  return $schema;
+ 
+}
+

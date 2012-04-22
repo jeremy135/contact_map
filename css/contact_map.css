@@ -1,0 +1,10 @@
+p.map_content {
+    padding: 5px;
+}
+#zoom a {
+    text-decoration: none;
+    border-bottom: 1px dashed blue;
+}
+.hide {
+    display: none;
+}
