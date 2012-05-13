@@ -257,13 +257,13 @@ function contact_map_points_form($form, $form_state, $data = NULL) {
     $form['left'] = array(
         '#type' => 'textfield',
         '#title' => t('First coord'),
-        '#default_value' => ($data) ? $data->content : '',
+        '#default_value' => ($data) ? $data->left_ : '',
         '#required' => TRUE
     );
     $form['right'] = array(
         '#type' => 'textfield',
         '#title' => t('Second Coord'),
-        '#default_value' => ($data) ? $data->content : '',
+        '#default_value' => ($data) ? $data->right_ : '',
         '#required' => TRUE
     );
     
